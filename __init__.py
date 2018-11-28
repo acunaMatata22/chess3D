@@ -6,7 +6,7 @@ from direct.showbase.DirectObject import DirectObject
 from panda3d.core import AmbientLight, PointLight, DirectionalLight
 from panda3d.core import LightAttrib, Vec4, TransparencyAttrib, NodePath
 from direct.task.Task import Task
-from pieces import Piece, Pawn, Rook, Knight, Bishop, Queen, King
+from pieces import *
 import copy
 
 def squarePos(num):
@@ -140,7 +140,7 @@ class Chess(ShowBase):
                 else:
                     color = Chess.darkGrey
                 self.squares[i + 64].setTransparency(TransparencyAttrib.MAlpha)
-                self.squaress[i + 64].setColor(color)
+                self.squares[i + 64].setColor(color)
                 self.squares[i + 64].setPos(squarePos(i + 64))
                 self.squares[i + 64].reparentTo(self.uBoard)
         elif transparency == "visible":

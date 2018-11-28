@@ -4,56 +4,33 @@
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.DirectObject import DirectObject
 from panda3d.core import AmbientLight, PointLight, DirectionalLight
-from panda3d.core import LightAttrib, Vec4, TransparencyAttrib, NodePath
+from panda3d.core import LightAttrib, TransparencyAttrib, NodePath
 from direct.task.Task import Task
+from constant import *
+from utils import *
 from pieces import *
 import copy
 
-def squarePos(num):
-    # returns the XY coordinates of the squares for initialization render
-    # NOTE: for drawing only, not for indexing
-    return (num % 8 - 3.5, (num % 64) // 8, (num // 64) * 1.13)
-
-def indexToTuple(num):
-    # used to reference the coordinate of a specific 0-127 indexed square
-    return (num // 64, num % 8, num % 64)
-
-def tupleToIndex(coordinates):
-    # used to get square index from a coordinate tuple
-    total = 0
-    total += coordinates[0] * 64
-    total += coordinates[1] * 8
-    total += coordinates[2]
-    return total
 
 class Chess(ShowBase):
     # First sets up the colors used throughout the program
-    upperT = .5
-    vanilla = Vec4(0.953, 0.898, 0.671, 1)
-    walnut = Vec4(.416, 0.263, .177, 1)
-    whiteP = Vec4(0.941, 0.871, 0.584, 0.99)
-    blackP = Vec4(0.1, 0.1, 0.1, 1)
-    darkGrey = Vec4(0.5, 0.5, 0.5, upperT)
-    lightGrey = Vec4(0.3, 0.3, 0.3, upperT)
-    select = Vec4(0, 0.573, 0.741, 1)
-    highlight = Vec4(0.224, 0.428, 0.518, 1)
-
+    
     def __init__(self):
         # sets the board
-        ShowBase. __init__(self)
+        ShowBase.__init__(self)
         # start to set up the board
         self.loadNodes() # loads nodes used for rendering tree
+        
         self.squares = []
         self.loadSquares() # loads lower squares onto the render tree to be drawn
         self.loadUpperSquares("start") # loads upper squares onto render tree
         # sets up spaces on the board that keeps track of all pieces
         print(len(self.squares))
-        board, row, col = 0, 3, 3
-        self.selected = [board, row, col] # selects the first square
-        self.loadSquares(tupleToIndex(self.selected), Chess.select) # color starter
+        self.selected = [0, 3, 3] # selects the first square
+        self.loadSquares(tupleToIndex(self.selected), SELECT) # color starter
         self.highlighted = ([])
+        self.selPiece = None
         # is a 8x8x2 3D list
-        self.board = [[([None] * 8) for row in range(8)] for i in range(2)]
         self.loadPieces() # also loads pieces onto board
         self.loadLights()
         self.disableMouse() # mouse has a janky camera controll
@@ -66,7 +43,7 @@ class Chess(ShowBase):
         newSquare = tupleToIndex(self.selected)
         if self.selected[0] == 1:
             # new selected square is on the upper board
-            self.loadSquares(newSquare, Chess.select)
+            self.loadSquares(newSquare, SELECT)
             if old[0] == 1:
                 # make old square look normal
                 self.loadSquares(oldSquare, "upper") # old was on upper
@@ -75,8 +52,8 @@ class Chess(ShowBase):
                 self.loadUpperSquares("visible") # means moving to upper so
         else:
             # new selected square is on the lower board
-            self.loadSquares(newSquare, Chess.select)
-            Chess.upperT = 0.3
+            self.loadSquares(newSquare, SELECT)
+            upperT = 0.3
             if old[0] == 1:
                 self.loadSquares(oldSquare, "upper")
                 self.loadUpperSquares("clear")
@@ -111,24 +88,24 @@ class Chess(ShowBase):
             for i in range(64):
                 self.squares.append(loader.loadModel("models/square"))
                 if (i // 8 + i) % 2 == 0:
-                    color = Chess.walnut
+                    color = WALNUT
                 else:
-                    color = Chess.vanilla
+                    color = VANILLA
                 self.squares[i].setColor(color)
                 self.squares[i].setPos(squarePos(i))
                 self.squares[i].reparentTo(self.lBoard)
         else:
             if newColor == "upper": # just recoloring upper board square
                 if (square // 8 + square) % 2:
-                    color = Chess.darkGrey
+                    color = DARKGREY
                 else:
-                    color = Chess.lightGrey
+                    color = LIGHTGREY
             elif newColor != None:
                 color = newColor # on lower board
             elif (square // 8 + square) % 2 == 0: # just recoloring lower square
-                color = Chess.walnut
+                color = WALNUT
             else:
-                color = Chess.vanilla
+                color = VANILLA
             self.squares[square].setColor(color)
     def loadUpperSquares(self, transparency):
         # loads the squares of the lower board onto the screen
@@ -136,9 +113,9 @@ class Chess(ShowBase):
             for i in range(64):
                 self.squares.append(loader.loadModel("models/square"))
                 if (i // 8 + i) % 2 == 0:
-                    color = Chess.lightGrey
+                    color = LIGHTGREY
                 else:
-                    color = Chess.darkGrey
+                    color = DARKGREY
                 self.squares[i + 64].setTransparency(TransparencyAttrib.MAlpha)
                 self.squares[i + 64].setColor(color)
                 self.squares[i + 64].setPos(squarePos(i + 64))
@@ -155,27 +132,27 @@ class Chess(ShowBase):
         self.pawn = [None] * 16
         for i in range(8):
         # loads all pawns for both sides
-            self.pawn[i] = Pawn(i, "white", self.lBoard, self.board)
-            self.pawn[i + 8] = Pawn(i, "black", self.lBoard, self.board)
+            self.pawn[i] = Pawn(i, "white", self.lBoard, board)
+            self.pawn[i + 8] = Pawn(i, "black", self.lBoard, board)
 
         self.rook = [None] * 4
         self.knight = [None] * 4
         self.bishop = [None] * 4
         for i in range(2):
         # loads Rooks, Knights, and Bishops
-            self.rook[i] = Rook(i, "white", self.lBoard, self.board)
-            self.knight[i] = Knight(i, "white", self.lBoard, self.board)
-            self.bishop[i] = Bishop(i, "white", self.lBoard, self.board)
+            self.rook[i] = Rook(i, "white", self.lBoard, board)
+            self.knight[i] = Knight(i, "white", self.lBoard, board)
+            self.bishop[i] = Bishop(i, "white", self.lBoard, board)
             
-            self.rook[i + 2] = Rook(i, "black", self.lBoard, self.board)
-            self.knight[i + 2] = Knight(i, "black", self.lBoard, self.board)
-            self.bishop[i + 2] = Bishop(i, "black", self.lBoard, self.board)
+            self.rook[i + 2] = Rook(i, "black", self.lBoard, board)
+            self.knight[i + 2] = Knight(i, "black", self.lBoard, board)
+            self.bishop[i + 2] = Bishop(i, "black", self.lBoard, board)
 
         # finally load the king and queen
-        self.king = [King("white", self.lBoard, self.board, 1.19),
-                     King("black", self.lBoard, self.board, 1.19)]
-        self.queen = [Queen("white", self.lBoard, self.board, 1.22),
-                      Queen("black", self.lBoard, self.board, 1.22)]
+        self.king = [King("white", self.lBoard, board, 1.19),
+                     King("black", self.lBoard, board, 1.19)]
+        self.queen = [Queen("white", self.lBoard, board, 1.22),
+                      Queen("black", self.lBoard, board, 1.22)]
 
 class Controller(DirectObject):
     def __init__(self, chessObj):
@@ -205,9 +182,21 @@ class Controller(DirectObject):
             selected[2] = 7
         chessObj.selectSquare(old)
 
-    def selectPiece(self):
-        pass
+    def selectPiece(self, chessObj):
+        if chessObj.selPiece == None:
+            height = chessObj.selected[0]
+            row = chessObj.selected[1]
+            col = chessObj.selected[2]
+            chessObj.selPiece = board[height][row][col]
+        else:
+            pos = tupleToIndex(chessObj.selected)
+            chessObj.selPiece.move(pos, chessObj.selected)
+            chessObj.selPiece = None
 
+# Not constants and used throughout the module
+upperT = .5
+DARKGREY = Vec4(0.5, 0.5, 0.5, upperT)
+LIGHTGREY = Vec4(0.3, 0.3, 0.3, upperT)
 
 game = Chess()
 game.run()

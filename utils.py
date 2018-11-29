@@ -7,7 +7,7 @@ def squarePos(num):
 
 def indexToTuple(num):
     # used to reference the coordinate of a specific 0-127 indexed square
-    return (num // 64, num % 8, num // 8)
+    return (num // 64, num // 8, num % 8)
 
 def tupleToIndex(coordinates):
     # used to get square index from a coordinate tuple

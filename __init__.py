@@ -25,9 +25,8 @@ class Chess(ShowBase):
         self.loadSquares() # loads lower squares onto the render tree to be drawn
         self.loadUpperSquares("start") # loads upper squares onto render tree
         # sets up spaces on the board that keeps track of all pieces
-        print(len(self.squares))
-        self.selected = [0, 3, 3] # selects the first square
-        self.loadSquares(tupleToIndex(self.selected), SELECT) # color starter
+        self.selSqrCoor = [0, 3, 3] # selects the first square
+        self.loadSquares(tupleToIndex(self.selSqrCoor), SELECT) # color starter
         self.highlighted = ([])
         self.selPiece = None
         # is a 8x8x2 3D list
@@ -40,9 +39,9 @@ class Chess(ShowBase):
 
     def selectSquare(self, old):
         oldSquare = tupleToIndex(old) # is now an int
-        newSquare = tupleToIndex(self.selected)
-        if self.selected[0] == 1:
-            # new selected square is on the upper board
+        newSquare = tupleToIndex(self.selSqrCoor)
+        if self.selSqrCoor[0] == 1:
+            # new selSqrCoor square is on the upper board
             self.loadSquares(newSquare, SELECT)
             if old[0] == 1:
                 # make old square look normal
@@ -51,7 +50,7 @@ class Chess(ShowBase):
                 self.loadSquares(oldSquare)
                 self.loadUpperSquares("visible") # means moving to upper so
         else:
-            # new selected square is on the lower board
+            # new selSqrCoor square is on the lower board
             self.loadSquares(newSquare, SELECT)
             upperT = 0.3
             if old[0] == 1:
@@ -164,34 +163,42 @@ class Controller(DirectObject):
         self.accept('enter', self.selectPiece, [chessObj])
 
     def selectMove(self, dx, dy, dz, chessObj):
-        selected = chessObj.selected
-        old = copy.deepcopy(selected)
-        # old so that original selected can be colored
-        selected[0] += dx
-        selected[1] += dy
-        selected[2] += dz
-        if selected[0] >= 2:
-            selected[0] = 0
-        elif selected[1] >= 8:
-            selected[1] = 0
-        elif selected[1] < 0:
-            selected[1] = 7
-        elif selected[2] >= 8:
-            selected[2] = 0
-        elif selected[2] < 0:
-            selected[2] = 7
+        selSqrCoor = chessObj.selSqrCoor
+        old = copy.deepcopy(selSqrCoor)
+        # old so that original selSqrCoor can be colored
+        selSqrCoor[0] += dx
+        selSqrCoor[1] += dy
+        selSqrCoor[2] += dz
+        if selSqrCoor[0] >= 2:
+            selSqrCoor[0] = 0
+        elif selSqrCoor[1] >= 8:
+            selSqrCoor[1] = 0
+        elif selSqrCoor[1] < 0:
+            selSqrCoor[1] = 7
+        elif selSqrCoor[2] >= 8:
+            selSqrCoor[2] = 0
+        elif selSqrCoor[2] < 0:
+            selSqrCoor[2] = 7
         chessObj.selectSquare(old)
 
     def selectPiece(self, chessObj):
         if chessObj.selPiece == None:
-            height = chessObj.selected[0]
-            row = chessObj.selected[1]
-            col = chessObj.selected[2]
+            # pick up a piece
+            print("pick up piece")
+            height = chessObj.selSqrCoor[0]
+            row = chessObj.selSqrCoor[1]
+            col = chessObj.selSqrCoor[2]
             chessObj.selPiece = board[height][row][col]
-        else:
-            pos = tupleToIndex(chessObj.selected)
-            chessObj.selPiece.move(pos, chessObj.selected)
-            chessObj.selPiece = None
+            print(chessObj.selPiece)
+        else: # place a picked up piece
+            print("moving piece")
+            print(board)
+            if chessObj.selPiece.move(chessObj.selSqrCoor):
+                chessObj.selPiece = None
+                print("move complete")
+            else:
+                print("can't move there")
+            print("result:", board)
 
 # Not constants and used throughout the module
 upperT = .5

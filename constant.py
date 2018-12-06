@@ -11,4 +11,7 @@ WHITEP = Vec4(0.941, 0.871, 0.584, 0.5)
 BLACKP = Vec4(0.1, 0.1, 0.1, 0.5)
 ### Colors used for highlighting squares
 SELECT = Vec4(0, 0.573, 0.741, 1)
-HIGHLIGHT = Vec4(0.224, 0.428, 0.518, 1)
+HIGHLIGHT = Vec4(0.224, 0.428, 0.518, 0.7)
+
+WHITE = Vec4(1,1,1,1)
+BLACK = Vec4(0,0,0,1)

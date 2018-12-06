@@ -15,6 +15,7 @@ from pieces import *
 
 import copy
 import sys
+import math
 
 
 class Chess(ShowBase):
@@ -46,6 +47,8 @@ class Chess(ShowBase):
         self.pieceChoice = [0, 1] # [x, y] not [row, col]
         self.legalSquares = [] # any square legal to move onto
         self.highlighted = [] # illustrates possible moves
+        self.angle = 0
+        self.turn = "white"
         self.selPiece = None
         self.gameMode = "start"
         self.fontTrans = 1
@@ -287,9 +290,9 @@ class Chess(ShowBase):
                                         pos = (-.114, 0, .114), scale = imgScale)
         self.outlineImg.setTransparency(TransparencyAttrib.MAlpha)
         if self.selPiece.position > 63: # can't promote to queen on upper board
-            self.queen = False
+            self.queenPro = False
         else:
-            self.queen = True
+            self.queenPro = True
     def selPromote(self):
         # builds a new piece object
         exitPromo = True
@@ -297,7 +300,7 @@ class Chess(ShowBase):
         if self.pieceChoice == [0,0]:
             self.selNewPiece("Bishop", self.lBoard)
         elif self.pieceChoice == [0, 1]:
-            if self.queen:
+            if self.queenPro:
                 self.selNewPiece("Queen", self.lBoard)
             else:
                 self.cantSelect()
@@ -314,6 +317,9 @@ class Chess(ShowBase):
             self.outlineImg.destroy()
             self.gameMode = "game"
             self.selPiece.model.removeNode()
+            self.selPiece = board[self.selSqrCoor[0]][self.selSqrCoor[1]][self.selSqrCoor[2]]
+            # tests for checks after the promotion
+            self.selPiece.move(self.selSqrCoor, self, True)
             self.selPiece = None
             Controller.selectPiece(self.contr, self)
     def selNewPiece(self, pieceType, node):
@@ -343,6 +349,18 @@ class Chess(ShowBase):
         self.cantPath.setScale(0.1)
         self.cantPath.setPos((0, 0, 0))
         taskMgr.doMethodLater(2, self.removeText, "remTxt", extraArgs=[])
+    def gameOver(self):
+        # shows Game Over text
+        gameOverTxt = TextNode("cantSelect")
+        gameOverTxt.setText("Game Over")
+        gameOverTxt.setAlign(TextNode.ACenter)
+        gameOverTxt.setTextColor((1, 0, 0, 1))
+        tFont = loader.loadFont('fonts/ariblk.ttf')
+        tFont.setPixelsPerUnit(120)
+        gameOverTxt.setFont(tFont)
+        self.gameOverPath =  aspect2d.attachNewNode(gameOverTxt)
+        self.gameOverPath.setScale(0.35)
+        self.gameOverPath.setPos((0, 0, 0))
     def removeText(self):
         self.cantPath.removeNode()
     def startScreen(self):
@@ -359,7 +377,19 @@ class Chess(ShowBase):
         self.txtInterv = LerpFunctionInterval(self.setStartTextColor,
                 fromData=1, toData=0, duration=2, extraArgs=[self.startTxt])
         self.fontTrans=0
-        
+
+    def switchSides(self):
+        self.switchInt = LerpFunctionInterval(self.moveCamera,
+                fromData=self.angle, toData=(self.angle+math.pi), duration=1.2)
+        self.switchInt.start()
+        self.angle += math.pi
+        if self.turn == "white":
+            self.turn = "black"
+        else: self.turn = "white"
+    def moveCamera(self, angle):
+        pos = [11.5 * math.sin(angle), 11.5 * math.cos(angle - math.pi) + 3.5, 7]
+        hpr = [angle * 180 / math.pi, -32, 0]
+        camera.setPosHpr(pos[0], pos[1], pos[2], hpr[0], hpr[1], hpr[2])
     def startText(self):
         # starting text displaying start intructions
         titleTxt = TextNode('introText')
@@ -415,14 +445,24 @@ class Controller(DirectObject):
 
     def arrowPress(self, dir, chessObj):
         if chessObj.gameMode == "game":
-            if dir == "left":
-                self.selectMove(0, 0, -1, chessObj)
-            elif dir == "right":
-                self.selectMove(0, 0, 1, chessObj)
-            elif dir == "up":
-                self.selectMove(0, 1, 0, chessObj)
-            elif dir == "down":
-                self.selectMove(0, -1, 0, chessObj)
+            if chessObj.turn == "white":
+                if dir == "left":
+                    self.selectMove(0, 0, -1, chessObj)
+                elif dir == "right":
+                    self.selectMove(0, 0, 1, chessObj)
+                elif dir == "up":
+                    self.selectMove(0, 1, 0, chessObj)
+                elif dir == "down":
+                    self.selectMove(0, -1, 0, chessObj)
+            else:
+                if dir == "left":
+                    self.selectMove(0, 0, 1, chessObj)
+                elif dir == "right":
+                    self.selectMove(0, 0, -1, chessObj)
+                elif dir == "up":
+                    self.selectMove(0, -1, 0, chessObj)
+                elif dir == "down":
+                    self.selectMove(0, 1, 0, chessObj)
         elif chessObj.gameMode == "pieceSelection":
             self.changePromotionPiece(chessObj, dir)
     def selectMove(self, dz, dy, dx, chessObj):
@@ -510,17 +550,21 @@ class Controller(DirectObject):
                 print("Highlighted", chessObj.highlighted)
                 chessObj.drawHighlighted()
         else:
-            case = chessObj.selPiece.move(chessObj.selSqrCoor)
+            case = chessObj.selPiece.move(chessObj.selSqrCoor, chessObj)
             if case == "promotion":
                 chessObj.showPromotion()
                 chessObj.gameMode = "pieceSelection"
                 chessObj.dehighlight()
+                chessObj.switchSides()
             elif case == "success":
                 print("moving piece")
                 chessObj.selPiece = None
                 chessObj.dehighlight()
                 if chessObj.selSqrCoor[0] == 1:
                     chessObj.loadUpperSquares("visible")
+                chessObj.switchSides()
+            elif case == "gameOver":
+                chessObj.gameOver()
     def changePromotionPiece(self, chessObj, dir):
         # controlling the popup for promotion
         if dir == "left":

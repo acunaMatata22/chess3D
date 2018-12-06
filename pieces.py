@@ -16,54 +16,183 @@ class Piece(object):
         self.model.setScale(scale)
         self.position = pos
         self.color = None
-    def move(self, newCoor):
+    def move(self, newCoor, chessObj, promotion=False):
+        self.take = False
+        self.takenPiece = None
         # just moves the model to a new spot
-        if self.testCollision(newCoor): # test legal later
+        if self.testCollision(newCoor) or promotion: # sees if collides with friendly piece
             print("no collision")
-            if self.checkTests(newCoor):
-                newPos = tupleToIndex(newCoor)
-                origCoor = indexToTuple(self.position)
+            oldPos = self.position
+            origCoor = indexToTuple(self.position)
+            origPiece = board[origCoor[0]][origCoor[1]][origCoor[2]]
+            if not self.checkTests(newCoor, chessObj):
+                print("legal")
                 print("new Coor:", newCoor, "old Coor:", origCoor)
                 # a tuple containing the pieces original location
-                board[origCoor[0]][origCoor[1]][origCoor[2]] = None
-                board[newCoor[0]][newCoor[1]][newCoor[2]] = self
                 # sets old spot on board to None and new to the piece
-                self.position = newPos
+                newPos = tupleToIndex(newCoor)
                 self.model.setPos(squarePos(newPos))
-                self.isCheck(newCoor)
+                if self.isCheck(newCoor, chessObj):
+                    print("CHECK")
+                    check = True
+                    if self.isCheckMate(newCoor, chessObj, origCoor):
+                        return "gameOver"
                 return "success"
             else:
+                print("puts king in check")
+                # must undo move
+                self.position = oldPos
+                if self.take:
+                    self.unTake(self.takenPiece, chessObj)
+                board[origCoor[0]][origCoor[1]][origCoor[2]] = self
+                board[newCoor[0]][newCoor[1]][newCoor[2]] = origPiece
                 return "collision"
         else:
             return "collision"
-    def isCheck(self, newCoor):
+    def checkTests(self, newCoor, chessObj):
+        # makes sure move wont put self in check
+        newPos = tupleToIndex(newCoor)
+        origCoor = indexToTuple(self.position)
+        board[origCoor[0]][origCoor[1]][origCoor[2]] = None
+        board[newCoor[0]][newCoor[1]][newCoor[2]] = self
+        self.position = newPos
+        for Possibleking in chessObj.king:
+            if Possibleking.color == self.color:
+                king = Possibleking
+                kingCoor = indexToTuple(king.position)
+            else:
+                secondKing = Possibleking
+        for pawn in chessObj.pawn:
+            if pawn.color != king.color:
+                moves = pawn.getSquares(indexToTuple(pawn.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        for knight in chessObj.knight:
+            if knight.color != king.color:
+                moves = knight.getSquares(indexToTuple(knight.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        for rook in chessObj.rook:
+            if rook.color != king.color:
+                moves = rook.getSquares(indexToTuple(rook.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        for bishop in chessObj.bishop:
+            if bishop.color != king.color:
+                moves = bishop.getSquares(indexToTuple(bishop.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        for queen in chessObj.queen:
+            if queen.color != king.color:
+                moves = queen.getSquares(indexToTuple(queen.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        for secondKing in chessObj.king:
+            if secondKing != king:
+                moves = king.getSquares(indexToTuple(king.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        for newPiece in chessObj.newPieces:
+            if newPiece.color != king.color:
+                moves = newPiece.getSquares(indexToTuple(newPiece.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        return False
+    def isCheck(self, newCoor, chessObj, color=None):
         # checks if the new move will put opponent in check
-        pass
-    def checkTests(self, newCoor):
-        return True
-    def testCollision(self, curCoor):
+        if color == None:
+            color = self.color
+        for Possibleking in chessObj.king:
+            if Possibleking.color != color:
+                king = Possibleking
+                kingCoor = indexToTuple(king.position)
+            else:
+                secondKing = Possibleking
+        for pawn in chessObj.pawn:
+            if pawn.color != king.color:
+                moves = pawn.getSquares(indexToTuple(pawn.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        for knight in chessObj.knight:
+            if knight.color != king.color:
+                moves = knight.getSquares(indexToTuple(knight.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        for rook in chessObj.rook:
+            if rook.color != king.color:
+                moves = rook.getSquares(indexToTuple(rook.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        for bishop in chessObj.bishop:
+            if bishop.color != king.color:
+                moves = bishop.getSquares(indexToTuple(bishop.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        for queen in chessObj.queen:
+            if queen.color != king.color:
+                moves = queen.getSquares(indexToTuple(queen.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        for newPiece in chessObj.newPieces:
+            if newPiece.color != king.color:
+                moves = newPiece.getSquares(indexToTuple(newPiece.position))
+                for move in moves:
+                    if move == kingCoor:
+                        return True
+        return False
+    def isCheckMate(self, newCoor, chessObj, origCoor):
+        for potentKing in chessObj.king:
+            if potentKing.color != self.color:
+                king = potentKing
+        for kingMove in king.getSquares(indexToTuple(king.position)):
+            if self.testCollision(newCoor, king):
+                newPos = tupleToIndex(newCoor)
+                board[origCoor[0]][origCoor[1]][origCoor[2]] = None
+                board[newCoor[0]][newCoor[1]][newCoor[2]] = king
+                if not checkTests(self, newCoor, chessObj):
+                    return False
+                else: return True
+    def testCollision(self, curCoor, piece=None):
         # tests if a piece can move somewhere
         squareVal = board[curCoor[0]][curCoor[1]][curCoor[2]]
         # the object currently located at the board location
+        if piece == None:
+            piece = self
         print("squareVal:", squareVal)
         if squareVal == None:
             print("empty space")
             return True
         else:
-            if squareVal == self:
+            if squareVal == piece:
                 print("itself")
                 return False
-            elif squareVal.color == self.color:
-                print("same color:", self.color)
+            elif squareVal.color == piece.color:
+                print("same color:", piece.color)
                 return False
             else:
-                self.takePiece(squareVal)
+                piece.takePiece(squareVal)
                 print("different color")
+                self.take = True
+                self.takenPiece = squareVal
                 return True
     def takePiece(self, piece):
         # add piece to list of taken pieces and removes from board
         piece.model.removeNode() # call detachNode() to not draw but not delete
         print("piece taken")
+    def unTake(self, piece, chessObj):
+        chessObj.newPieces.append(piece)
     def getSquares(self, curCoor):
         moves = self.getMoves(curCoor)
         # z, y, x = curCoor[0], curCoor[1], curCoor[2]
@@ -232,10 +361,10 @@ class Pawn(Piece):
                     board[z][y - 2][x] == None:
                 moves.append([z, y - 2, x])
         return moves
-    def move(self, newCoor):
+    def move(self, newCoor, chessObj):
         self.specialMove = False
         returnVal = "success"
-        if super(Pawn, self).move(newCoor):
+        if super(Pawn, self).move(newCoor, chessObj):
             if (self.color == "black" and newCoor[1] == 0) or \
                     (self.color == "white" and newCoor[1] == 7):
                 returnVal = "promotion"
